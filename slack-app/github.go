@@ -127,7 +127,7 @@ func (s *GitHubWebhook) handleEvent(ev *github.WorkflowRunEvent) {
 
 	slackMsg := slack.Attachment{
 		Color:      color,
-		Title:      fmt.Sprintf(msg, workflow, runTime),
+		Title:      msg,
 		TitleLink:  url,
 		AuthorName: repo,
 		MarkdownIn: []string{"fields"},
