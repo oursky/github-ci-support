@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
@@ -81,6 +82,7 @@ func (s *GitHubWebhook) handleEvent(ev *github.WorkflowRunEvent) {
 	conclusion := ev.GetWorkflowRun().GetConclusion()
 
 	commitMsg := ev.GetWorkflowRun().GetHeadCommit().GetMessage()
+	commitMsgHeader := strings.Split(commitMsg, "\n")[0]
 	commitURL := ev.GetWorkflowRun().GetHeadRepository().GetHTMLURL() + "/commit/" + ev.GetWorkflowRun().GetHeadCommit().GetID()
 
 	log.Printf("Workflow run completed: %d @ %s", runID, repo)
@@ -136,7 +138,7 @@ func (s *GitHubWebhook) handleEvent(ev *github.WorkflowRunEvent) {
 			Value: fmt.Sprintf(
 				"<%s|%s>",
 				slackutilsx.EscapeMessage(commitURL),
-				slackutilsx.EscapeMessage(commitMsg),
+				slackutilsx.EscapeMessage(commitMsgHeader),
 			),
 		}},
 	}
