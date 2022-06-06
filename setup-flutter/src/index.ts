@@ -28,11 +28,13 @@ export async function setupFlutter(version: string) {
   core.info(`Arch: ${arch}`);
   core.info(`Version: ${version}`);
 
-  const client = new HttpClient();
-  const manifest = await fetchManifest(client, os);
-  const release = resolveRelease(manifest, arch, version);
-  const flutterDir = await fetchRelease(manifest, release);
-  setupEnv(flutterDir);
+  await core.group("Installing flutter...", async () => {
+    const client = new HttpClient();
+    const manifest = await fetchManifest(client, os);
+    const release = resolveRelease(manifest, arch, version);
+    const flutterDir = await fetchRelease(manifest, release);
+    setupEnv(flutterDir);
+  });
 
   await exec.exec("flutter doctor");
 }

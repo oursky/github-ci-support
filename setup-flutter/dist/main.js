@@ -1560,7 +1560,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       command_1.issue("endgroup");
     }
     exports.endGroup = endGroup;
-    function group(name, fn) {
+    function group2(name, fn) {
       return __awaiter(this, void 0, void 0, function* () {
         startGroup(name);
         let result;
@@ -1572,7 +1572,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
         return result;
       });
     }
-    exports.group = group;
+    exports.group = group2;
     function saveState(name, value) {
       command_1.issueCommand("save-state", { name }, value);
     }
@@ -6975,11 +6975,13 @@ async function setupFlutter(version) {
   core.info(`OS: ${os}`);
   core.info(`Arch: ${arch}`);
   core.info(`Version: ${version}`);
-  const client = new import_http_client.HttpClient();
-  const manifest = await fetchManifest(client, os);
-  const release = resolveRelease(manifest, arch, version);
-  const flutterDir = await fetchRelease(manifest, release);
-  setupEnv(flutterDir);
+  await core.group("Installing flutter...", async () => {
+    const client = new import_http_client.HttpClient();
+    const manifest = await fetchManifest(client, os);
+    const release = resolveRelease(manifest, arch, version);
+    const flutterDir = await fetchRelease(manifest, release);
+    setupEnv(flutterDir);
+  });
   await exec.exec("flutter doctor");
 }
 async function fetchManifest(client, os) {
