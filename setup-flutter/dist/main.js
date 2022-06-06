@@ -6982,6 +6982,7 @@ async function setupFlutter(version) {
     const flutterDir = await fetchRelease(manifest, release);
     setupEnv(flutterDir);
   });
+  await exec.exec("flutter config --no-analytics");
   await exec.exec("flutter doctor");
 }
 async function fetchManifest(client, os) {

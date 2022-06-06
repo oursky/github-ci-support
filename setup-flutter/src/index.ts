@@ -36,6 +36,7 @@ export async function setupFlutter(version: string) {
     setupEnv(flutterDir);
   });
 
+  await exec.exec("flutter config --no-analytics");
   await exec.exec("flutter doctor");
 }
 
