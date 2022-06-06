@@ -1,0 +1,12 @@
+name: Setup Android
+description: Setup Android
+runs:
+  using: node16
+  main: dist/main.js
+inputs:
+  accept-licenses:
+    description: Accept licenses (y)
+    required: true
+  packages:
+    description: Packages to install (space-separated)
+    required: true
