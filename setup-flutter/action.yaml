@@ -1,0 +1,9 @@
+name: Setup Flutter
+description: Setup Flutter
+runs:
+  using: node16
+  main: dist/main.js
+inputs:
+  flutter-version:
+    description: Flutter version
+    required: true
