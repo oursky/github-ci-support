@@ -105,20 +105,20 @@ func (s *GitHubWebhook) handleEvent(ev *github.WorkflowRunEvent) {
 	switch conclusion {
 	case "action_required":
 		msg = fmt.Sprintf("%s requires action.", workflow)
-		color = "#808000"
+		color = "#F0C000"
 	case "cancelled":
 		msg = fmt.Sprintf("%s is cancelled.", workflow)
 	case "skipped":
 		msg = ""
 	case "failure":
 		msg = fmt.Sprintf("%s has failed in %s.", workflow, runTime)
-		color = "#800000"
+		color = "#C00000"
 	case "timed_out":
 		msg = fmt.Sprintf("%s timed out in %s.", workflow, runTime)
-		color = "#808000"
+		color = "#F0C000"
 	case "success":
 		msg = fmt.Sprintf("%s has succeeded in %s.", workflow, runTime)
-		color = "#008000"
+		color = "#00C000"
 	default:
 		msg = fmt.Sprintf("%s has completed in %s.", workflow, runTime)
 	}
