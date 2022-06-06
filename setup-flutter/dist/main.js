@@ -6980,7 +6980,7 @@ async function setupFlutter(version) {
   const release = resolveRelease(manifest, arch, version);
   const flutterDir = await fetchRelease(manifest, release);
   setupEnv(flutterDir);
-  exec.exec("flutter doctor");
+  await exec.exec("flutter doctor");
 }
 async function fetchManifest(client, os) {
   const url = manifestURL(os);
@@ -7025,7 +7025,7 @@ async function fetchRelease({ base_url }, release) {
   extPath = import_path.default.join(extPath, "flutter");
   core.info(`Successfully extracted Flutter to ${extPath}`);
   core.info("Precaching...");
-  exec.exec(import_path.default.join(extPath, "bin", "flutter"), ["precache"]);
+  await exec.exec(import_path.default.join(extPath, "bin", "flutter"), ["precache"]);
   core.info("Adding to the cache...");
   const cachedDir = await tc.cacheDir(extPath, "flutter", release.version, release.dart_sdk_arch);
   core.info(`Successfully cached Flutter to ${cachedDir}`);
