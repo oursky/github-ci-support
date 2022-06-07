@@ -2,7 +2,6 @@ import Foundation
 import Virtualization
 
 struct DiskConfig: Codable {
-  var id: String
   var path: String
   var readOnly: Bool
 }
@@ -48,7 +47,6 @@ struct Config: Codable {
         url: URL(fileURLWithPath: diskConfig.path),
         readOnly: diskConfig.readOnly)
       let disk = VZVirtioBlockDeviceConfiguration(attachment: attachment)
-      disk.blockDeviceIdentifier = diskConfig.id
       cfg.storageDevices.append(disk)
     }
   }
