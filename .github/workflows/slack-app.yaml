@@ -3,6 +3,8 @@ name: Build Slack App
 on:
   push:
     branches: [master, dev]
+    paths:
+      - 'slack-app/**'
   pull_request:
     branches: [master]
     paths:

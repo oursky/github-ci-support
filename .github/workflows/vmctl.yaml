@@ -1,0 +1,25 @@
+name: Build vmctl
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - 'vmctl/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'vmctl/**'
+
+jobs:
+  build:
+    runs-on: macos-12
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: make -C vmctl build CONFIGURATION=release
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: vmctl
+          path: vmctl/bin/vmctl
