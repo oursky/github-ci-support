@@ -12,6 +12,9 @@ struct Install: AsyncParsableCommand {
   @Option(help: "Path to IPSW image.")
   var ipsw: String
 
+  @Option(help: "Disk Size in GB")
+  var diskSizeGB: UInt64
+
   @MainActor
   func run() async throws {
     let bundle = try VMBundle(path: self.bundle)
@@ -23,7 +26,7 @@ struct Install: AsyncParsableCommand {
     guard let requirements = ipsw.mostFeaturefulSupportedConfiguration else {
       fatalError("cannot extract hardward config from IPSW")
     }
-    try bundle.setup(from: requirements.hardwareModel, diskSizeMB: 50 * 1024)
+    try bundle.setup(from: requirements.hardwareModel, diskSizeMB: self.diskSizeGB * 1024)
 
     let installer = VMInstaller(from: ipsw, config: try config.instantiate(bundle: bundle))
 
