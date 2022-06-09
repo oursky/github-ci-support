@@ -19,7 +19,6 @@ struct Config: Codable {
     config.additionalDisks = config.additionalDisks?.map {
       var disk = $0
       disk.path = URL(string: disk.path, relativeTo: url)!.path
-      print(disk.path)
       return disk
     }
     return config

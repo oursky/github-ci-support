@@ -11,7 +11,7 @@ struct Start: AsyncParsableCommand {
 
   @MainActor
   func run() async throws {
-    let bundle = try VMBundle(path: self.bundle)
+    let bundle = try VMBundle(url: URL(fileURLWithPath: self.bundle, isDirectory: true))
     let config = try Config.load(from: URL(fileURLWithPath: self.config))
 
     print("starting VM...")

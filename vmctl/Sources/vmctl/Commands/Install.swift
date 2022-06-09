@@ -17,7 +17,7 @@ struct Install: AsyncParsableCommand {
 
   @MainActor
   func run() async throws {
-    let bundle = try VMBundle(path: self.bundle)
+    let bundle = try VMBundle(url: URL(fileURLWithPath: self.bundle, isDirectory: true))
     let ipsw = try await withCheckedThrowingContinuation { complete in
       VZMacOSRestoreImage.load(from: URL(fileURLWithPath: self.ipsw)) { complete.resume(with: $0) }
     }

@@ -4,8 +4,8 @@ import Virtualization
 struct VMBundle {
   let url: URL
 
-  init(path: String) throws {
-    url = URL(fileURLWithPath: path, isDirectory: true)
+  init(url: URL) throws {
+    self.url = url
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
   }
 
@@ -16,6 +16,19 @@ struct VMBundle {
   var modelURL: URL { url.appendingPathComponent("model.dat") }
 
   var identifierURL: URL { url.appendingPathComponent("identifier.dat") }
+
+  func clone(to url: URL) throws -> VMBundle {
+    let manager = FileManager.default
+    try? manager.removeItem(at: url)
+
+    let target = try VMBundle(url: url)
+    try manager.copyItem(at: self.diskImageURL, to: target.diskImageURL)
+    try manager.copyItem(at: self.auxURL, to: target.auxURL)
+    try manager.copyItem(at: self.modelURL, to: target.modelURL)
+    try manager.copyItem(at: self.identifierURL, to: target.identifierURL)
+
+    return target
+  }
 
   func setup(from model: VZMacHardwareModel, diskSizeMB: UInt64) throws {
     try "".write(to: self.diskImageURL, atomically: true, encoding: .utf8)
