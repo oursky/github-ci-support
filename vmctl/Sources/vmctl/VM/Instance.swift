@@ -2,6 +2,20 @@ import Combine
 import Foundation
 import Virtualization
 
+@objc private protocol _VZVirtualMachine {
+  @objc(_startWithOptions:completionHandler:)
+  func _start(with options: _VZVirtualMachineStartOptions) async throws
+}
+
+@objc private protocol _VZVirtualMachineStartOptions {
+  init()
+  var panicAction: Bool { get set }
+  var stopInIBootStage1: Bool { get set }
+  var stopInIBootStage2: Bool { get set }
+  var bootMacOSRecovery: Bool { get set }
+  var forceDFU: Bool { get set }
+}
+
 class Instance: NSObject, VZVirtualMachineDelegate {
   let vm: VZVirtualMachine
 
@@ -15,13 +29,16 @@ class Instance: NSObject, VZVirtualMachineDelegate {
   }
 
   @MainActor
-  func start() async throws {
-    Task.detached {
-      try await withCheckedThrowingContinuation { complete in
-        DispatchQueue.main.async {
-          self.vm.start { complete.resume(with: $0) }
-        }
-      }
+  func start(recovery: Bool = false) async throws {
+    // https://github.com/saagarjha/VirtualApple/blob/8231082e026211d992568fdececc6f47609669ac/VirtualApple/VirtualMachine.swift#L135
+    Task.detached { @MainActor in
+      let vm = unsafeBitCast(self.vm, to: _VZVirtualMachine.self)
+      let options = unsafeBitCast(
+        NSClassFromString("_VZVirtualMachineStartOptions")!,
+        to: _VZVirtualMachineStartOptions.Type.self
+      ).init()
+      options.bootMacOSRecovery = recovery
+      try await vm._start(with: options)
     }
   }
 

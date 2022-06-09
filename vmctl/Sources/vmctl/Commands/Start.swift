@@ -9,6 +9,9 @@ struct Start: AsyncParsableCommand {
   @Option(help: "Path to VM bundle")
   var bundle: String
 
+  @Flag(help: "Boot into recovery")
+  var recovery = false
+
   @MainActor
   func run() async throws {
     let bundle = try VMBundle(url: URL(fileURLWithPath: self.bundle, isDirectory: true))
@@ -16,7 +19,7 @@ struct Start: AsyncParsableCommand {
 
     print("starting VM...")
     let instance = Instance(config: try config.instantiate(bundle: bundle))
-    try await instance.start()
+    try await instance.start(recovery: recovery)
 
     if config.noGraphics ?? true {
       dispatchMain()
