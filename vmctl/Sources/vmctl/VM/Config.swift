@@ -13,6 +13,7 @@ struct Config: Codable {
   var displayWidth: Int
   var displayHeight: Int
   var additionalDisks: [DiskConfig]?
+  var macAddress: String?
 
   static func load(from url: URL) throws -> Config {
     var config = try JSONDecoder().decode(Config.self, from: try Data(contentsOf: url))
@@ -72,6 +73,12 @@ struct Config: Codable {
 
     let networkDevice = VZVirtioNetworkDeviceConfiguration()
     networkDevice.attachment = VZNATNetworkDeviceAttachment()
+    if let macAddress = self.macAddress {
+      guard let macAddress = VZMACAddress(string: macAddress) else {
+        fatalError("invalid mac address: \(macAddress)")
+      }
+      networkDevice.macAddress = macAddress
+    }
     cfg.networkDevices = [networkDevice]
 
     cfg.pointingDevices = [VZUSBScreenCoordinatePointingDeviceConfiguration()]
