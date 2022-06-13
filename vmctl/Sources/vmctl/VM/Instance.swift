@@ -18,6 +18,7 @@ import Virtualization
 
 class Instance: NSObject, VZVirtualMachineDelegate {
   let vm: VZVirtualMachine
+  var keyScript: [KeyScriptInstr]?
 
   let onStop = PassthroughSubject<(), Never>()
 
@@ -42,6 +43,11 @@ class Instance: NSObject, VZVirtualMachineDelegate {
     }
   }
 
+  func loadKeyScript(fromURL url: URL) throws {
+    let data = try Data(contentsOf: url)
+    self.keyScript = try JSONDecoder().decode([KeyScriptInstr].self, from: data)
+  }
+
   func guestDidStop(_ virtualMachine: VZVirtualMachine) {
     print("VM stopped.")
     self.onStop.send()
@@ -50,5 +56,10 @@ class Instance: NSObject, VZVirtualMachineDelegate {
   func virtualMachine(_ virtualMachine: VZVirtualMachine, didStopWithError error: Error) {
     print("VM failed: \(error)")
     self.onStop.send()
+  }
+
+  func virtualMachine(_ virtualMachine: VZVirtualMachine, networkDevice: VZNetworkDevice, attachmentWasDisconnectedWithError error: Error) {
+    print("VM network disconnected: \(error)")
+    try? self.vm.requestStop()
   }
 }
