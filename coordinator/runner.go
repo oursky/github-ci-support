@@ -52,13 +52,13 @@ func (r *Runner) run(ctx context.Context) error {
 	bundlePath := filepath.Join(workDir, "vm.bundle")
 	configPath := filepath.Join(workDir, "config.json")
 
-	ok := true
-	for ok {
-		ok, err = r.runVM(ctx, bundlePath, configPath)
+	cont := true
+	for cont {
+		cont, err = r.runVM(ctx, bundlePath, configPath)
 		if err != nil {
 			return fmt.Errorf("failed to run VM: %w", err)
 		}
-		if ok {
+		if cont {
 			r.logger.Info("VM exited, restarting VM")
 		}
 	}
@@ -96,11 +96,11 @@ func (r *Runner) runVM(ctx context.Context, bundlePath, configPath string) (bool
 		return false, fmt.Errorf("failed save VM config: %w", err)
 	}
 
-	state := RunnerState{VM: vm, MacAddress: macAddr}
-	err = state.Run(ctx)
+	state := RunnerState{Logger: r.logger, VM: vm, MacAddress: macAddr}
+	cont, err := state.Run(ctx)
 	if err != nil {
-		return false, err
+		return cont, err
 	}
 
-	return true, nil
+	return cont, nil
 }

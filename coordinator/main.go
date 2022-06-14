@@ -53,7 +53,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
-	go start(ctx, g, runners)
+	start(ctx, g, runners)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
@@ -63,7 +63,10 @@ func main() {
 		cancel()
 	}()
 
-	g.Wait()
+	err = g.Wait()
+	if err != nil {
+		logger.Fatalw("error occured", "error", err)
+	}
 }
 
 func start(ctx context.Context, g *errgroup.Group, runners []*Runner) {
