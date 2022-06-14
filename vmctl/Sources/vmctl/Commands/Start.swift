@@ -20,7 +20,6 @@ struct Start: AsyncParsableCommand {
     let bundle = try VMBundle(url: URL(fileURLWithPath: self.bundle, isDirectory: true))
     let config = try Config.load(from: URL(fileURLWithPath: self.config))
 
-    print("starting VM...")
     let instance = Instance(config: try config.instantiate(bundle: bundle))
     if let scriptPath = self.keyScript {
       try instance.loadKeyScript(fromURL: URL(fileURLWithPath: scriptPath))

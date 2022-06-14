@@ -14,6 +14,7 @@ struct Config: Codable {
   var displayHeight: Int
   var additionalDisks: [DiskConfig]?
   var macAddress: String?
+  var tty: Bool?
 
   static func load(from url: URL) throws -> Config {
     var config = try JSONDecoder().decode(Config.self, from: try Data(contentsOf: url))
@@ -85,6 +86,15 @@ struct Config: Codable {
     cfg.keyboards = [VZUSBKeyboardConfiguration()]
     cfg.entropyDevices = [VZVirtioEntropyDeviceConfiguration()]
     cfg.memoryBalloonDevices = [VZVirtioTraditionalMemoryBalloonDeviceConfiguration()]
+
+    if tty ?? true {
+      let dev = VZVirtioConsoleDeviceSerialPortConfiguration()
+      dev.attachment = VZFileHandleSerialPortAttachment(
+        fileHandleForReading: FileHandle.standardInput,
+        fileHandleForWriting: FileHandle.standardOutput
+      )
+      cfg.serialPorts = [dev]
+    }
 
     try cfg.validate()
     return cfg

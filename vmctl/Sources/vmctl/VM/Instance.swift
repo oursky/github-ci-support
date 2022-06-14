@@ -58,7 +58,10 @@ class Instance: NSObject, VZVirtualMachineDelegate {
     self.onStop.send()
   }
 
-  func virtualMachine(_ virtualMachine: VZVirtualMachine, networkDevice: VZNetworkDevice, attachmentWasDisconnectedWithError error: Error) {
+  func virtualMachine(
+    _ virtualMachine: VZVirtualMachine, networkDevice: VZNetworkDevice,
+    attachmentWasDisconnectedWithError error: Error
+  ) {
     print("VM network disconnected: \(error)")
     try? self.vm.requestStop()
   }
