@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -67,39 +65,16 @@ func (r *Runner) run(ctx context.Context) error {
 }
 
 func (r *Runner) runVM(ctx context.Context, bundlePath, configPath string) (bool, error) {
-	vm := NewVM(r.logger, r.vmctlPath, bundlePath, configPath)
+	instance := NewRunnerInstance(r.logger, r.vmctlPath, bundlePath, configPath)
 
-	r.logger.Infow("cloning VM", "from", r.config.BaseVMBundlePath, "to", bundlePath)
-	err := vm.CloneFrom(ctx, r.config.BaseVMBundlePath)
+	err := instance.Init(ctx, r.config.BaseVMBundlePath, r.config.VMConfigPath)
 	if err != nil {
-		return false, fmt.Errorf("failed to clone VM: %w", err)
+		return false, fmt.Errorf("failed to init VM: %w", err)
 	}
 
-	configData, err := ioutil.ReadFile(r.config.VMConfigPath)
+	cont, err := instance.Run(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed load VM config: %w", err)
-	}
-	var config map[string]interface{}
-	if err := json.Unmarshal(configData, &config); err != nil {
-		return false, fmt.Errorf("failed parse VM config: %w", err)
-	}
-
-	macAddr := generateMACAddress()
-	r.logger.Infow("generated MAC address", "mac", macAddr)
-	config["macAddress"] = macAddr
-
-	configData, err = json.Marshal(config)
-	if err != nil {
-		return false, fmt.Errorf("failed serialize VM config: %w", err)
-	}
-	if err := ioutil.WriteFile(configPath, configData, 0644); err != nil {
-		return false, fmt.Errorf("failed save VM config: %w", err)
-	}
-
-	state := RunnerState{Logger: r.logger, VM: vm, MacAddress: macAddr}
-	cont, err := state.Run(ctx)
-	if err != nil {
-		return cont, err
+		return false, err
 	}
 
 	return cont, nil
