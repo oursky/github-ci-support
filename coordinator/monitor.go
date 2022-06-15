@@ -272,6 +272,7 @@ func (m *Monitor) checkRunners() {
 func (m *Monitor) cleanupRunners() {
 	m.logger.Info("cleaning up runners")
 	for _, runner := range m.localRunners {
+		runner.update(m.remote.Epoch, RunnerStateTerminating)
 		m.terminate(runner)
 	}
 }
