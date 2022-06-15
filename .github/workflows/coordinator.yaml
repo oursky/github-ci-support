@@ -24,7 +24,7 @@ jobs:
 
       - run: |
           cd coordinator
-          go build -race .
+          GOOS=darwin GOARCH=arm64 go build -race .
 
       - uses: actions/upload-artifact@v3
         with:
