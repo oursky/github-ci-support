@@ -11,6 +11,8 @@ import (
 type RunnerTarget interface {
 	URL() string
 	GetRegistrationToken(ctx context.Context, client *github.Client) (*github.RegistrationToken, error)
+	GetRunners(ctx context.Context, client *github.Client, page int, pageSize int) (runners []*github.Runner, nextPage int, err error)
+	DeleteRunner(ctx context.Context, client *github.Client, id int64) error
 }
 
 var (

@@ -44,16 +44,17 @@ func main() {
 	}
 
 	server := NewServer(logger, target, client)
+	monitor := NewMonitor(logger, target, client)
 
 	var runners []*Runner
 	for i, runnerConfig := range config.Runners {
-		runner := NewRunner(i, logger, config, runnerConfig, server)
+		runner := NewRunner(i, logger, config, runnerConfig, server, monitor)
 		runners = append(runners, runner)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
-	start(ctx, g, server, runners)
+	start(ctx, g, server, monitor, runners)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
@@ -69,8 +70,9 @@ func main() {
 	}
 }
 
-func start(ctx context.Context, g *errgroup.Group, server *Server, runners []*Runner) {
+func start(ctx context.Context, g *errgroup.Group, server *Server, monitor *Monitor, runners []*Runner) {
 	server.Run(ctx, g)
+	monitor.Run(ctx, g)
 	for _, runner := range runners {
 		runner.Run(ctx, g)
 	}

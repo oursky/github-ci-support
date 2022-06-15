@@ -16,15 +16,17 @@ type Runner struct {
 	vmctlPath string
 	config    *RunnerConfig
 	server    *Server
+	monitor   *Monitor
 }
 
-func NewRunner(id int, logger *zap.SugaredLogger, config *Config, runnerConfig RunnerConfig, server *Server) *Runner {
+func NewRunner(id int, logger *zap.SugaredLogger, config *Config, runnerConfig RunnerConfig, server *Server, monitor *Monitor) *Runner {
 	return &Runner{
 		id:        id,
 		logger:    logger.Named(fmt.Sprintf("runner-%d", id)),
 		vmctlPath: config.VMCtlPath,
 		config:    &runnerConfig,
 		server:    server,
+		monitor:   monitor,
 	}
 }
 
@@ -48,36 +50,27 @@ func (r *Runner) run(ctx context.Context) error {
 
 	bundlePath := filepath.Join(workDir, "vm.bundle")
 
-	cont := true
-	for cont {
-		cont, err = r.runVM(ctx, bundlePath)
+	for ctx.Err() == nil {
+		err = r.runVM(ctx, bundlePath)
 		if err != nil {
 			return fmt.Errorf("failed to run VM: %w", err)
 		}
-		if cont {
-			r.logger.Info("VM exited, restarting VM")
-		}
+		r.logger.Info("VM exited, restarting VM")
 	}
 
 	return nil
 }
 
-func (r *Runner) runVM(ctx context.Context, bundlePath string) (bool, error) {
-	instance := NewRunnerInstance(r.logger, r.vmctlPath, bundlePath, r.config)
+func (r *Runner) runVM(ctx context.Context, bundlePath string) error {
+	instance := NewRunnerInstance(r.logger, r.vmctlPath, bundlePath, r.config, r.monitor)
 
 	err := instance.Init(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed to init VM: %w", err)
+		return fmt.Errorf("failed to init VM: %w", err)
 	}
 
 	r.server.Instances.Store(instance.Token, instance)
+	defer r.server.Instances.Delete(instance.Token)
 
-	cont, err := instance.Run(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	r.server.Instances.Delete(instance.Token)
-
-	return cont, nil
+	return instance.Run(ctx)
 }

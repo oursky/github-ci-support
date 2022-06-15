@@ -20,30 +20,34 @@ type RunnerInstance struct {
 	vmctlPath  string
 	bundlePath string
 	Config     *RunnerConfig
+	monitor    *Monitor
 
-	ID         uint32
+	id         uint32
 	Token      string
-	runnerID   int
+	runnerID   int64
 	runnerName string
 	hostName   string
 
-	Messages chan<- any
-	messages <-chan any
+	vmContext context.Context
+	terminate func()
+	messages  chan any
 }
 
 var nextID uint32 = 0
 
-func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, config *RunnerConfig) *RunnerInstance {
+func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, config *RunnerConfig, monitor *Monitor) *RunnerInstance {
 	id := atomic.AddUint32(&nextID, 1)
-	messages := make(chan any)
+	vmContext, cancel := context.WithCancel(context.Background())
 	return &RunnerInstance{
-		ID:         id,
+		id:         id,
 		logger:     logger.Named(fmt.Sprintf("vm-%d", id)),
 		vmctlPath:  vmctlPath,
 		bundlePath: bundlePath,
 		Config:     config,
-		Messages:   messages,
-		messages:   messages,
+		monitor:    monitor,
+		vmContext:  vmContext,
+		terminate:  cancel,
+		messages:   make(chan any),
 	}
 }
 
@@ -62,10 +66,18 @@ func (r *RunnerInstance) Init(ctx context.Context) error {
 	if _, err := rand.Read(buf[:]); err != nil {
 		return fmt.Errorf("failed to generate token: %w", err)
 	}
-	r.Token = fmt.Sprintf("%s-%d", base64.RawURLEncoding.EncodeToString(buf[:]), r.ID)
+	r.Token = fmt.Sprintf("%s-%d", base64.RawURLEncoding.EncodeToString(buf[:]), r.id)
 	r.logger.Infow("generated token", "mac", r.Token)
 
 	return nil
+}
+
+func (r *RunnerInstance) Post(msg any) {
+	r.messages <- msg
+}
+
+func (r *RunnerInstance) Terminate() {
+	r.terminate()
 }
 
 func (r *RunnerInstance) start(ctx context.Context) (*exec.Cmd, io.WriteCloser, io.ReadCloser, error) {
@@ -97,11 +109,14 @@ func (r *RunnerInstance) start(ctx context.Context) (*exec.Cmd, io.WriteCloser, 
 	return cmd, in, pr, nil
 }
 
-func (r *RunnerInstance) Run(ctx context.Context) (bool, error) {
+func (r *RunnerInstance) Run(ctx context.Context) error {
 	cmd, in, out, err := r.start(context.Background())
 	if err != nil {
-		return true, err
+		return err
 	}
+
+	r.monitor.Post(MonitorMsgRegister{InstanceID: r.id, Instance: r})
+	defer r.monitor.Post(MonitorMsgExited{InstanceID: r.id})
 
 	go func() {
 		log := r.logger.Named("log")
@@ -130,26 +145,36 @@ func (r *RunnerInstance) Run(ctx context.Context) (bool, error) {
 			r.handleMessage(msg)
 
 		case err = <-completed:
-			return true, err
+			r.terminate()
+			return err
 
 		case <-ctx.Done():
 			r.logger.Infow("terminating VM")
-			return false, cmd.Process.Kill()
+			r.terminate()
+			return cmd.Process.Kill()
+
+		case <-r.vmContext.Done():
+			r.logger.Infow("terminating VM")
+			return cmd.Process.Kill()
 		}
 	}
 }
 
 func (r *RunnerInstance) handleMessage(msg any) {
-	if reg, ok := msg.(RunnerMsgRegister); ok {
-		r.logger.Infow("registering instance",
-			"name", reg.Name,
-			"hostname", reg.HostName)
-		r.runnerName = reg.Name
-		r.hostName = reg.HostName
-	} else if reg, ok := msg.(RunnerMsgUpdate); ok {
-		r.logger.Infow("updating instance", "runnerID", reg.RunnerID)
-		if reg.RunnerID != nil {
-			r.runnerID = *reg.RunnerID
+	switch msg := msg.(type) {
+	case RunnerMsgRegister:
+		r.runnerName = msg.Name
+		r.hostName = msg.HostName
+
+	case RunnerMsgUpdate:
+		if msg.RunnerID != nil {
+			r.runnerID = *msg.RunnerID
 		}
 	}
+
+	r.monitor.Post(MonitorMsgUpdate{
+		InstanceID: r.id,
+		RunnerName: r.runnerName,
+		RunnerID:   r.runnerID,
+	})
 }

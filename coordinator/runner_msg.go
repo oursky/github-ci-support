@@ -6,5 +6,5 @@ type RunnerMsgRegister struct {
 }
 
 type RunnerMsgUpdate struct {
-	RunnerID *int
+	RunnerID *int64
 }

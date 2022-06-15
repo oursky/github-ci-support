@@ -55,7 +55,8 @@ func (s *Server) Run(ctx context.Context, g *errgroup.Group) {
 		g.Go(func() error {
 			return s.runMDNS(ctx, listener)
 		})
-		return s.runHTTP(ctx, listener)
+		s.runHTTP(ctx, listener)
+		return nil
 	})
 }
 
@@ -69,23 +70,26 @@ func (s *Server) runMDNS(ctx context.Context, listener net.Listener) error {
 		return fmt.Errorf("cannot publish mDNS: %w", err)
 	}
 
-	s.logger.Infow("published mDNS service", "service", fmt.Sprintf("%s.%s.local", serviceName, serviceType))
+	s.logger.Infow("published mDNS service",
+		"service", fmt.Sprintf("%s.%s.local", serviceName, serviceType),
+		"port", addr.Port,
+	)
 
-	ok := false
+	done := make(chan error, 1)
 	go func() {
-		<-ctx.Done()
-		ok = true
-		cmd.Process.Signal(syscall.SIGTERM)
+		done <- cmd.Wait()
 	}()
 
-	err = cmd.Wait()
-	if err != nil && !ok {
+	select {
+	case err := <-done:
 		return err
+	case <-ctx.Done():
+		cmd.Process.Signal(syscall.SIGTERM)
+		return nil
 	}
-	return nil
 }
 
-func (s *Server) runHTTP(ctx context.Context, listener net.Listener) error {
+func (s *Server) runHTTP(ctx context.Context, listener net.Listener) {
 	mux := http.NewServeMux()
 	server := &http.Server{
 		ReadTimeout:  5 * time.Second,
@@ -111,8 +115,6 @@ func (s *Server) runHTTP(ctx context.Context, listener net.Listener) error {
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		s.logger.Errorw("failed to start server", "error", err)
 	}
-
-	return nil
 }
 
 func (s *Server) register(rw http.ResponseWriter, r *http.Request) {
@@ -123,7 +125,7 @@ func (s *Server) register(rw http.ResponseWriter, r *http.Request) {
 
 	name := r.FormValue("name")
 	hostName := r.FormValue("hostName")
-	instance.Messages <- RunnerMsgRegister{Name: name, HostName: hostName}
+	instance.Post(RunnerMsgRegister{Name: name, HostName: hostName})
 
 	token, err := s.token.Get()
 	if err != nil {
@@ -156,9 +158,9 @@ func (s *Server) update(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	runnerIDStr := r.FormValue("runnerID")
-	var runnerID *int
+	var runnerID *int64
 	if runnerIDStr != "" {
-		id, err := strconv.Atoi(runnerIDStr)
+		id, err := strconv.ParseInt(runnerIDStr, 10, 64)
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
 			rw.Write([]byte(err.Error()))
@@ -166,7 +168,7 @@ func (s *Server) update(rw http.ResponseWriter, r *http.Request) {
 		}
 		runnerID = &id
 	}
-	instance.Messages <- RunnerMsgUpdate{RunnerID: runnerID}
+	instance.Post(RunnerMsgUpdate{RunnerID: runnerID})
 
 	rw.WriteHeader(http.StatusNoContent)
 }
