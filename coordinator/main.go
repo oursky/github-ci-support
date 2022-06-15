@@ -43,17 +43,17 @@ func main() {
 		panic(fmt.Sprintf("cannot load target: %s", err))
 	}
 
-	token := githublib.NewRegistrationTokenStore(target, client)
+	server := NewServer(logger, target, client)
 
 	var runners []*Runner
 	for i, runnerConfig := range config.Runners {
-		runner := NewRunner(i, logger, config, runnerConfig, token)
+		runner := NewRunner(i, logger, config, runnerConfig, server)
 		runners = append(runners, runner)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
-	start(ctx, g, runners)
+	start(ctx, g, server, runners)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
@@ -69,7 +69,8 @@ func main() {
 	}
 }
 
-func start(ctx context.Context, g *errgroup.Group, runners []*Runner) {
+func start(ctx context.Context, g *errgroup.Group, server *Server, runners []*Runner) {
+	server.Run(ctx, g)
 	for _, runner := range runners {
 		runner.Run(ctx, g)
 	}

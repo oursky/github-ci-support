@@ -3,12 +3,13 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
+	"sync/atomic"
 	"syscall"
 
 	"go.uber.org/zap"
@@ -16,18 +17,33 @@ import (
 
 type RunnerInstance struct {
 	logger     *zap.SugaredLogger
-	MacAddress string
 	vmctlPath  string
 	bundlePath string
-	configPath string
+	Config     *RunnerConfig
+
+	ID         uint32
+	Token      string
+	runnerID   int
+	runnerName string
+	hostName   string
+
+	Messages chan<- any
+	messages <-chan any
 }
 
-func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath, configPath string) *RunnerInstance {
+var nextID uint32 = 0
+
+func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, config *RunnerConfig) *RunnerInstance {
+	id := atomic.AddUint32(&nextID, 1)
+	messages := make(chan any)
 	return &RunnerInstance{
-		logger:     logger.Named("vm"),
+		ID:         id,
+		logger:     logger.Named(fmt.Sprintf("vm-%d", id)),
 		vmctlPath:  vmctlPath,
 		bundlePath: bundlePath,
-		configPath: configPath,
+		Config:     config,
+		Messages:   messages,
+		messages:   messages,
 	}
 }
 
@@ -35,64 +51,54 @@ func (r *RunnerInstance) vmctl(ctx context.Context, args ...string) *exec.Cmd {
 	return exec.CommandContext(ctx, r.vmctlPath, args...)
 }
 
-func (r *RunnerInstance) Init(ctx context.Context, baseBundlePath, baseConfigPath string) error {
-	cmd := r.vmctl(ctx, "clone", baseBundlePath, r.bundlePath)
+func (r *RunnerInstance) Init(ctx context.Context) error {
+	cmd := r.vmctl(ctx, "clone", r.Config.BaseVMBundlePath, r.bundlePath)
 	r.logger.Debugw("cloning vm", "cmd", cmd.String())
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("failed to clone VM: %w", err)
 	}
 
-	r.MacAddress = generateMACAddress()
-	r.logger.Infow("generated MAC address", "mac", r.MacAddress)
-
-	configData, err := ioutil.ReadFile(baseConfigPath)
-	if err != nil {
-		return fmt.Errorf("failed load VM config: %w", err)
+	var buf [12]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return fmt.Errorf("failed to generate token: %w", err)
 	}
-	var config map[string]interface{}
-	if err := json.Unmarshal(configData, &config); err != nil {
-		return fmt.Errorf("failed parse VM config: %w", err)
-	}
-
-	config["macAddress"] = r.MacAddress
-
-	configData, err = json.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed serialize VM config: %w", err)
-	}
-	if err := ioutil.WriteFile(r.configPath, configData, 0644); err != nil {
-		return fmt.Errorf("failed save VM config: %w", err)
-	}
+	r.Token = fmt.Sprintf("%s-%d", base64.RawURLEncoding.EncodeToString(buf[:]), r.ID)
+	r.logger.Infow("generated token", "mac", r.Token)
 
 	return nil
 }
 
-func (r *RunnerInstance) start(ctx context.Context) (*exec.Cmd, io.ReadCloser, error) {
-	cmd := r.vmctl(ctx, "start", "--config", r.configPath, "--bundle", r.bundlePath)
+func (r *RunnerInstance) start(ctx context.Context) (*exec.Cmd, io.WriteCloser, io.ReadCloser, error) {
+	cmd := r.vmctl(ctx, "start", "--config", r.Config.VMConfigPath, "--bundle", r.bundlePath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
 
 	pr, pw, err := os.Pipe()
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot setup pipe: %w", err)
+		return nil, nil, nil, fmt.Errorf("cannot setup out pipe: %w", err)
 	}
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 	defer pw.Close()
 
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("cannot setup in pipe: %w", err)
+	}
+
 	r.logger.Debugw("starting vm", "cmd", cmd.String())
 	err = cmd.Start()
 	if err != nil {
 		pr.Close()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return cmd, pr, nil
+	return cmd, in, pr, nil
 }
 
 func (r *RunnerInstance) Run(ctx context.Context) (bool, error) {
-	cmd, out, err := r.start(context.Background())
+	cmd, in, out, err := r.start(context.Background())
 	if err != nil {
 		return true, err
 	}
@@ -111,6 +117,8 @@ func (r *RunnerInstance) Run(ctx context.Context) (bool, error) {
 		}
 	}()
 
+	in.Write([]byte(r.Token + "\n"))
+
 	completed := make(chan error, 1)
 	go func() {
 		completed <- cmd.Wait()
@@ -118,12 +126,30 @@ func (r *RunnerInstance) Run(ctx context.Context) (bool, error) {
 
 	for {
 		select {
+		case msg := <-r.messages:
+			r.handleMessage(msg)
+
 		case err = <-completed:
 			return true, err
 
 		case <-ctx.Done():
 			r.logger.Infow("terminating VM")
 			return false, cmd.Process.Kill()
+		}
+	}
+}
+
+func (r *RunnerInstance) handleMessage(msg any) {
+	if reg, ok := msg.(RunnerMsgRegister); ok {
+		r.logger.Infow("registering instance",
+			"name", reg.Name,
+			"hostname", reg.HostName)
+		r.runnerName = reg.Name
+		r.hostName = reg.HostName
+	} else if reg, ok := msg.(RunnerMsgUpdate); ok {
+		r.logger.Infow("updating instance", "runnerID", reg.RunnerID)
+		if reg.RunnerID != nil {
+			r.runnerID = *reg.RunnerID
 		}
 	}
 }
