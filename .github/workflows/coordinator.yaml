@@ -1,0 +1,32 @@
+name: Build coordinator
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - 'coordinator/**'
+      - 'githublib/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'coordinator/**'
+      - 'githublib/**'
+
+jobs:
+  build:
+    runs-on: macos-12
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.18.2'
+
+      - run: |
+          cd coordinator
+          go build -race .
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: coordinator
+          path: coordinator/coordinator
