@@ -12,7 +12,7 @@ import (
 
 const (
 	syncInterval time.Duration = 10 * time.Second
-	syncPageSize int           = 3
+	syncPageSize int           = 100
 )
 
 type RemoteRunner struct {

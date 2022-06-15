@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"sync/atomic"
 	"syscall"
 
@@ -28,8 +29,10 @@ type RunnerInstance struct {
 	runnerName string
 	hostName   string
 
-	vmContext context.Context
-	terminate func()
+	termLock  *sync.Mutex
+	term      int
+	terminate chan struct{}
+	kill      chan struct{}
 	messages  chan any
 }
 
@@ -37,7 +40,6 @@ var nextID uint32 = 0
 
 func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, config *RunnerConfig, monitor *Monitor) *RunnerInstance {
 	id := atomic.AddUint32(&nextID, 1)
-	vmContext, cancel := context.WithCancel(context.Background())
 	return &RunnerInstance{
 		id:         id,
 		logger:     logger.Named(fmt.Sprintf("vm-%d", id)),
@@ -45,8 +47,10 @@ func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, 
 		bundlePath: bundlePath,
 		Config:     config,
 		monitor:    monitor,
-		vmContext:  vmContext,
-		terminate:  cancel,
+		termLock:   new(sync.Mutex),
+		term:       0,
+		terminate:  make(chan struct{}),
+		kill:       make(chan struct{}),
 		messages:   make(chan any),
 	}
 }
@@ -73,11 +77,27 @@ func (r *RunnerInstance) Init(ctx context.Context) error {
 }
 
 func (r *RunnerInstance) Post(msg any) {
-	r.messages <- msg
+	select {
+	case <-r.terminate:
+	case r.messages <- msg:
+	}
 }
 
-func (r *RunnerInstance) Terminate() {
-	r.terminate()
+func (r *RunnerInstance) Terminate(kill bool) {
+	r.termLock.Lock()
+	defer r.termLock.Unlock()
+	if r.term < 1 {
+		r.term = 1
+		close(r.terminate)
+	}
+	if r.term < 2 && kill {
+		r.term = 2
+		close(r.kill)
+	}
+}
+
+func (r *RunnerInstance) NeedTerminate() <-chan struct{} {
+	return r.terminate
 }
 
 func (r *RunnerInstance) start(ctx context.Context) (*exec.Cmd, io.WriteCloser, io.ReadCloser, error) {
@@ -139,24 +159,30 @@ func (r *RunnerInstance) Run(ctx context.Context) error {
 		completed <- cmd.Wait()
 	}()
 
-	for {
+	terminate := false
+	for !terminate {
 		select {
 		case msg := <-r.messages:
 			r.handleMessage(msg)
 
 		case err = <-completed:
-			r.terminate()
 			return err
 
 		case <-ctx.Done():
-			r.logger.Infow("terminating VM")
-			r.terminate()
-			return cmd.Process.Kill()
+			terminate = true
 
-		case <-r.vmContext.Done():
-			r.logger.Infow("terminating VM")
-			return cmd.Process.Kill()
+		case <-r.terminate:
+			terminate = true
 		}
+	}
+
+	r.logger.Infow("terminating VM gracefully")
+	select {
+	case err = <-completed:
+		return err
+	case <-r.kill:
+		r.logger.Infow("killing VM")
+		return cmd.Process.Kill()
 	}
 }
 

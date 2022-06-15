@@ -93,13 +93,14 @@ func (s *Server) runHTTP(ctx context.Context, listener net.Listener) {
 	mux := http.NewServeMux()
 	server := &http.Server{
 		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 100 * time.Second,
 		Handler:      mux,
 		ErrorLog:     zap.NewStdLog(s.logger.Desugar()),
 	}
 
 	mux.HandleFunc("/register", s.register)
 	mux.HandleFunc("/update", s.update)
+	mux.HandleFunc("/wait", s.wait)
 
 	addr := listener.Addr().(*net.TCPAddr)
 	s.logger.Infow("server started", "addr", addr.String())
@@ -118,7 +119,7 @@ func (s *Server) runHTTP(ctx context.Context, listener net.Listener) {
 }
 
 func (s *Server) register(rw http.ResponseWriter, r *http.Request) {
-	instance, ok := s.check(rw, r)
+	instance, ok := s.check(rw, r, true)
 	if !ok {
 		return
 	}
@@ -152,7 +153,7 @@ func (s *Server) register(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) update(rw http.ResponseWriter, r *http.Request) {
-	instance, ok := s.check(rw, r)
+	instance, ok := s.check(rw, r, true)
 	if !ok {
 		return
 	}
@@ -173,7 +174,21 @@ func (s *Server) update(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) check(rw http.ResponseWriter, r *http.Request) (*RunnerInstance, bool) {
+func (s *Server) wait(rw http.ResponseWriter, r *http.Request) {
+	instance, ok := s.check(rw, r, false)
+	if !ok {
+		return
+	}
+
+	select {
+	case <-instance.NeedTerminate():
+		rw.WriteHeader(http.StatusNoContent)
+	case <-time.After(60 * time.Second):
+		rw.WriteHeader(http.StatusRequestTimeout)
+	}
+}
+
+func (s *Server) check(rw http.ResponseWriter, r *http.Request, parseForm bool) (*RunnerInstance, bool) {
 	authz := r.Header.Get("Authorization")
 	bearer, token, ok := strings.Cut(authz, " ")
 	if !ok || bearer != "Bearer" {
@@ -187,11 +202,13 @@ func (s *Server) check(rw http.ResponseWriter, r *http.Request) (*RunnerInstance
 		return nil, false
 	}
 
-	err := r.ParseForm()
-	if err != nil {
-		err = fmt.Errorf("malformed request: %w", err)
-		s.reqError(rw, err.Error())
-		return nil, false
+	if parseForm {
+		err := r.ParseForm()
+		if err != nil {
+			err = fmt.Errorf("malformed request: %w", err)
+			s.reqError(rw, err.Error())
+			return nil, false
+		}
 	}
 
 	return instance.(*RunnerInstance), true

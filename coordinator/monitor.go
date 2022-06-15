@@ -118,9 +118,10 @@ func (m *Monitor) run(ctx context.Context, sync <-chan *RemoteRunners, stopSync 
 }
 
 func (m *Monitor) terminate(runner *localRunner) {
+	isOverdue := (m.remote.Epoch - runner.epoch) > transitionTimeoutEpochs
 	done := true
 	if !runner.isDead {
-		runner.instance.Terminate()
+		runner.instance.Terminate(isOverdue)
 		done = false
 	}
 
@@ -132,10 +133,10 @@ func (m *Monitor) terminate(runner *localRunner) {
 
 		if err := m.target.DeleteRunner(context.Background(), m.client, r.ID); err != nil {
 			m.logger.Warnw("failed to delete runner", "error", err)
-			if (m.remote.Epoch - runner.epoch) <= transitionTimeoutEpochs {
-				done = false
-			} else {
+			if isOverdue {
 				m.logger.Warnw("retry count exceeded, abandoning")
+			} else {
+				done = false
 			}
 		}
 	}
@@ -216,6 +217,7 @@ func (m *Monitor) checkTimeout(runner *localRunner) bool {
 		)
 
 		runner.update(m.remote.Epoch, RunnerStateTerminating)
+		runner.instance.Terminate(true)
 		m.terminate(runner)
 		return false
 	}
