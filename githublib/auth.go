@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v45/github"
 	"golang.org/x/oauth2"
 )
 
@@ -29,7 +29,7 @@ type AppAuthConfig struct {
 	PrivateKeyPath string `json:"privateKeyPath"`
 }
 
-func (c *AuthConfig) CreateClient() (*github.Client, error) {
+func (c *AuthConfig) CreateClient() (*http.Client, error) {
 	var transport http.RoundTripper
 	switch c.Type {
 	case AuthTypeToken:
@@ -56,5 +56,8 @@ func (c *AuthConfig) CreateClient() (*github.Client, error) {
 		return nil, fmt.Errorf("invalid auth type: %s", c.Type)
 	}
 
-	return github.NewClient(&http.Client{Transport: transport}), nil
+	client := &http.Client{Transport: transport}
+	client.Timeout = 10 * time.Second
+
+	return &http.Client{Transport: transport}, nil
 }

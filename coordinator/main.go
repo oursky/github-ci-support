@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/google/go-github/v45/github"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
@@ -33,10 +35,12 @@ func main() {
 		panic(fmt.Sprintf("cannot load config: %s", err))
 	}
 
-	client, err := config.Auth.CreateClient()
+	httpClient, err := config.Auth.CreateClient()
 	if err != nil {
 		panic(fmt.Sprintf("cannot create client: %s", err))
 	}
+	httpClient.Timeout = 10 * time.Second
+	client := github.NewClient(httpClient)
 
 	target, err := githublib.NewRunnerTarget(config.Target)
 	if err != nil {
