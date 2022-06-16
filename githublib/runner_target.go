@@ -17,6 +17,7 @@ type RunnerTarget interface {
 
 var (
 	regexTargetRepo = regexp.MustCompile(`https://github\.com/([^/]+)/([^/]+)/?`)
+	regexTargetOrg  = regexp.MustCompile(`https://github\.com/([^/]+)/?`)
 )
 
 func NewRunnerTarget(url string) (RunnerTarget, error) {
@@ -25,5 +26,11 @@ func NewRunnerTarget(url string) (RunnerTarget, error) {
 		name := match[2]
 		return &RunnerTargetRepository{Name: name, Owner: owner}, nil
 	}
+
+	if match := regexTargetOrg.FindStringSubmatch(url); match != nil {
+		name := match[1]
+		return &RunnerTargetOrganization{Name: name}, nil
+	}
+
 	return nil, errors.New("unsupported GitHub URL")
 }
