@@ -31,7 +31,7 @@ struct VMBundle {
   }
 
   func setup(from model: VZMacHardwareModel, diskSizeMB: UInt64) throws {
-    try "".write(to: self.diskImageURL, atomically: true, encoding: .utf8)
+    try Data().write(to: self.diskImageURL)
     let diskImage = try FileHandle(forWritingTo: self.diskImageURL)
     try diskImage.truncate(atOffset: 0)
     try diskImage.truncate(atOffset: diskSizeMB * 1024 * 1024)
