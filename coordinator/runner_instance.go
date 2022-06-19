@@ -22,6 +22,8 @@ type RunnerInstance struct {
 	bundlePath string
 	Config     *RunnerConfig
 	monitor    *Monitor
+	serverPort int
+	serverURL  string
 
 	id         uint32
 	Token      string
@@ -38,7 +40,7 @@ type RunnerInstance struct {
 
 var nextID uint32 = 0
 
-func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, config *RunnerConfig, monitor *Monitor) *RunnerInstance {
+func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, config *RunnerConfig, monitor *Monitor, serverPort int) *RunnerInstance {
 	id := atomic.AddUint32(&nextID, 1)
 	return &RunnerInstance{
 		id:         id,
@@ -47,6 +49,8 @@ func NewRunnerInstance(logger *zap.SugaredLogger, vmctlPath, bundlePath string, 
 		bundlePath: bundlePath,
 		Config:     config,
 		monitor:    monitor,
+		serverPort: serverPort,
+		serverURL:  "",
 		termLock:   new(sync.Mutex),
 		term:       0,
 		terminate:  make(chan struct{}),
@@ -72,6 +76,12 @@ func (r *RunnerInstance) Init(ctx context.Context) error {
 	}
 	r.Token = fmt.Sprintf("%s-%d", base64.RawURLEncoding.EncodeToString(buf[:]), r.id)
 	r.logger.Infow("generated token", "mac", r.Token)
+
+	hostName, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("cannot get hostname: %w", err)
+	}
+	r.serverURL = fmt.Sprintf("http://%s:%d", hostName, r.serverPort)
 
 	return nil
 }
@@ -152,7 +162,8 @@ func (r *RunnerInstance) Run(ctx context.Context) error {
 		}
 	}()
 
-	in.Write([]byte(r.Token + "\n"))
+	bootstrapMsg := fmt.Sprintf("%s %s\n", r.serverURL, r.Token)
+	in.Write([]byte(bootstrapMsg))
 
 	completed := make(chan error, 1)
 	go func() {

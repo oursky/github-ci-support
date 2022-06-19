@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/google/go-github/v45/github"
@@ -19,11 +17,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/oursky/github-ci-support/githublib"
-)
-
-const (
-	serviceType = "_github-action._tcp"
-	serviceName = "coordinator"
 )
 
 type Server struct {
@@ -45,48 +38,22 @@ func NewServer(logger *zap.SugaredLogger, target githublib.RunnerTarget, client 
 	}
 }
 
-func (s *Server) Run(ctx context.Context, g *errgroup.Group) {
+func (s *Server) Run(ctx context.Context, g *errgroup.Group) int {
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	port := 0
+	if err == nil {
+		port = listener.Addr().(*net.TCPAddr).Port
+	}
+
 	g.Go(func() error {
-		listener, err := net.Listen("tcp", "0.0.0.0:0")
 		if err != nil {
 			return fmt.Errorf("cannot setup server listener: %w", err)
 		}
-
-		g.Go(func() error {
-			return s.runMDNS(ctx, listener)
-		})
 		s.runHTTP(ctx, listener)
 		return nil
 	})
-}
 
-func (s *Server) runMDNS(ctx context.Context, listener net.Listener) error {
-	addr := listener.Addr().(*net.TCPAddr)
-	cmd := exec.Command("dns-sd", "-R", serviceName, serviceType, "local", strconv.Itoa(addr.Port))
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	err := cmd.Start()
-	if err != nil {
-		return fmt.Errorf("cannot publish mDNS: %w", err)
-	}
-
-	s.logger.Infow("published mDNS service",
-		"service", fmt.Sprintf("%s.%s.local", serviceName, serviceType),
-		"port", addr.Port,
-	)
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done():
-		cmd.Process.Signal(syscall.SIGTERM)
-		return nil
-	}
+	return port
 }
 
 func (s *Server) runHTTP(ctx context.Context, listener net.Listener) {

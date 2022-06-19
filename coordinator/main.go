@@ -75,9 +75,9 @@ func main() {
 }
 
 func start(ctx context.Context, g *errgroup.Group, server *Server, monitor *Monitor, runners []*Runner) {
-	server.Run(ctx, g)
+	port := server.Run(ctx, g)
 	monitor.Run(ctx, g)
 	for _, runner := range runners {
-		runner.Run(ctx, g)
+		runner.Run(ctx, g, port)
 	}
 }

@@ -30,13 +30,13 @@ func NewRunner(id int, logger *zap.SugaredLogger, config *Config, runnerConfig R
 	}
 }
 
-func (r *Runner) Run(ctx context.Context, g *errgroup.Group) {
+func (r *Runner) Run(ctx context.Context, g *errgroup.Group, serverPort int) {
 	g.Go(func() error {
-		return r.run(ctx)
+		return r.run(ctx, serverPort)
 	})
 }
 
-func (r *Runner) run(ctx context.Context) error {
+func (r *Runner) run(ctx context.Context, serverPort int) error {
 	workDir, err := os.MkdirTemp("", fmt.Sprintf("runner-%d-*", r.id))
 	if err != nil {
 		return fmt.Errorf("failed to create working directory: %w", err)
@@ -51,7 +51,7 @@ func (r *Runner) run(ctx context.Context) error {
 	bundlePath := filepath.Join(workDir, "vm.bundle")
 
 	for ctx.Err() == nil {
-		err = r.runVM(ctx, bundlePath)
+		err = r.runVM(ctx, bundlePath, serverPort)
 		if err != nil {
 			return fmt.Errorf("failed to run VM: %w", err)
 		}
@@ -61,8 +61,8 @@ func (r *Runner) run(ctx context.Context) error {
 	return nil
 }
 
-func (r *Runner) runVM(ctx context.Context, bundlePath string) error {
-	instance := NewRunnerInstance(r.logger, r.vmctlPath, bundlePath, r.config, r.monitor)
+func (r *Runner) runVM(ctx context.Context, bundlePath string, serverPort int) error {
+	instance := NewRunnerInstance(r.logger, r.vmctlPath, bundlePath, r.config, r.monitor, serverPort)
 
 	err := instance.Init(ctx)
 	if err != nil {
