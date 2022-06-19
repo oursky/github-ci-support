@@ -9,13 +9,13 @@ struct VMBundle {
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
   }
 
-  var diskImageURL: URL { url.appendingPathComponent("disk.img") }
+  var diskImageURL: URL { url.appendingPathComponent("disk.img").resolvingSymlinksInPath() }
 
-  var auxURL: URL { url.appendingPathComponent("aux.img") }
+  var auxURL: URL { url.appendingPathComponent("aux.img").resolvingSymlinksInPath() }
 
-  var modelURL: URL { url.appendingPathComponent("model.dat") }
+  var modelURL: URL { url.appendingPathComponent("model.dat").resolvingSymlinksInPath() }
 
-  var identifierURL: URL { url.appendingPathComponent("identifier.dat") }
+  var identifierURL: URL { url.appendingPathComponent("identifier.dat").resolvingSymlinksInPath() }
 
   func clone(to url: URL) throws -> VMBundle {
     let manager = FileManager.default

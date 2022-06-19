@@ -20,7 +20,7 @@ struct Config: Codable {
     var config = try JSONDecoder().decode(Config.self, from: try Data(contentsOf: url))
     config.additionalDisks = config.additionalDisks?.map {
       var disk = $0
-      disk.path = URL(string: disk.path, relativeTo: url)!.path
+      disk.path = URL(string: disk.path, relativeTo: url)!.resolvingSymlinksInPath().path
       return disk
     }
     return config
