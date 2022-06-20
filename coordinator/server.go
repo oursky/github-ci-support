@@ -145,7 +145,8 @@ func (s *Server) wait(rw http.ResponseWriter, r *http.Request) {
 
 	select {
 	case <-instance.NeedTerminate():
-		rw.WriteHeader(http.StatusNoContent)
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte("stop"))
 	case <-time.After(60 * time.Second):
 		rw.WriteHeader(http.StatusRequestTimeout)
 	}
