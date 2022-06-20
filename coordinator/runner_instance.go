@@ -81,7 +81,7 @@ func (r *RunnerInstance) Init(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot get hostname: %w", err)
 	}
-	r.serverURL = fmt.Sprintf("http://%s:%d", hostName, r.serverPort)
+	r.serverURL = fmt.Sprintf("http://%s.local:%d", hostName, r.serverPort)
 
 	return nil
 }
