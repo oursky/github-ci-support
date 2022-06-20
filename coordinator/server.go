@@ -72,12 +72,8 @@ func (s *Server) runHTTP(ctx context.Context, listener net.Listener) {
 	addr := listener.Addr().(*net.TCPAddr)
 	s.logger.Infow("server started", "addr", addr.String())
 
-	go func() {
-		<-ctx.Done()
-		if err := server.Shutdown(context.Background()); err != nil {
-			s.logger.Errorw("failed to shutdown server", "error", err)
-		}
-	}()
+	// Do not shutdown on signal: let runner call wait API
+	// Shutdown along with the process.
 
 	err := server.Serve(listener)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
