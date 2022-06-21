@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -80,6 +81,9 @@ func (r *RunnerInstance) Init(ctx context.Context) error {
 	hostName, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("cannot get hostname: %w", err)
+	}
+	if !strings.HasSuffix(hostName, ".local") {
+		hostName = hostName + ".local"
 	}
 	r.serverURL = fmt.Sprintf("http://%s:%d", hostName, r.serverPort)
 
