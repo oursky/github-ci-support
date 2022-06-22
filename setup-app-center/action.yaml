@@ -1,0 +1,10 @@
+name: Setup App Center CLI
+
+description: Setup App Center CLI
+runs:
+  using: node16
+  main: dist/main.js
+inputs:
+  cli-version:
+    description: App Center CLI version
+    required: false
