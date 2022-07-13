@@ -3,6 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@actions/core': 1.8.2
   '@actions/exec': 1.1.1
+  '@actions/glob': 0.3.0
   '@actions/io': 1.1.2
   '@actions/tool-cache': 2.0.1
   '@types/node': 16.11.38
@@ -12,6 +13,7 @@ specifiers:
 devDependencies:
   '@actions/core': 1.8.2
   '@actions/exec': 1.1.1
+  '@actions/glob': 0.3.0
   '@actions/io': 1.1.2
   '@actions/tool-cache': 2.0.1
   '@types/node': 16.11.38
@@ -30,6 +32,13 @@ packages:
     resolution: {integrity: sha512-+sCcHHbVdk93a0XT19ECtO/gIXoxvdsgQLzb2fE2/5sIZmWQuluYyjPQtrtTHdU1YzTZ7bAPN4sITq2xi1679w==}
     dependencies:
       '@actions/io': 1.1.2
+    dev: true
+
+  /@actions/glob/0.3.0:
+    resolution: {integrity: sha512-tJP1ZhF87fd6LBnaXWlahkyvdgvsLl7WnreW1EZaC8JWjpMXmzqWzQVe/IEYslrkT9ymibVrKyJN4UMD7uQM2w==}
+    dependencies:
+      '@actions/core': 1.8.2
+      minimatch: 3.1.2
     dev: true
 
   /@actions/http-client/2.0.1:
@@ -55,6 +64,21 @@ packages:
 
   /@types/node/16.11.38:
     resolution: {integrity: sha512-hjO/0K140An3GWDw2HJfq7gko3wWeznbjXgg+rzPdVzhe198hp4x2i1dgveAOEiFKd8sOilAxzoSJiVv5P/CUg==}
+    dev: true
+
+  /balanced-match/1.0.2:
+    resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
+    dev: true
+
+  /brace-expansion/1.1.11:
+    resolution: {integrity: sha512-iCuPHDFgrHX7H2vEI/5xpz07zSHB00TpugqhmYtVmMO6518mCuRMoOYFldEBl0g187ufozdaHgWKcYFb61qGiA==}
+    dependencies:
+      balanced-match: 1.0.2
+      concat-map: 0.0.1
+    dev: true
+
+  /concat-map/0.0.1:
+    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
     dev: true
 
   /esbuild-android-64/0.14.42:
@@ -263,6 +287,12 @@ packages:
       esbuild-windows-32: 0.14.42
       esbuild-windows-64: 0.14.42
       esbuild-windows-arm64: 0.14.42
+    dev: true
+
+  /minimatch/3.1.2:
+    resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
+    dependencies:
+      brace-expansion: 1.1.11
     dev: true
 
   /semver/6.3.0:
