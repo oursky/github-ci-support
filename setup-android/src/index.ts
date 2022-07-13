@@ -6,6 +6,7 @@ import * as glob from "@actions/glob";
 import path from "path";
 import fs from "fs";
 
+const persistentToolCache = !!process.env["GHA_PERSISTENT_TOOL_CACHE"];
 const dummyVersion = "1.0.0";
 
 function packageCacheKey(pkg: string) {
@@ -25,9 +26,13 @@ export async function setupAndroid(accept: string, packages: string) {
   await acceptLicenses(sdkManager, accept);
 
   const packageList = packages.split(" ").filter((x) => x.length > 0);
-  await restorePackages(androidHome, packageList);
+  if (persistentToolCache) {
+    await restorePackages(androidHome, packageList);
+  }
   await installPackages(sdkManager, packageList);
-  await cachePackages(androidHome, packageList);
+  if (persistentToolCache) {
+    await cachePackages(androidHome, packageList);
+  }
 }
 
 async function locateSDKManager(androidHome: string) {

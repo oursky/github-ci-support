@@ -1,9 +1,16 @@
 import * as core from "@actions/core";
 import * as tc from "@actions/tool-cache";
 import * as exec from "@actions/exec";
+import * as cache from "@actions/cache";
+import * as io from "@actions/io";
 import { HttpClient } from "@actions/http-client";
 import semver from "semver";
 import path from "path";
+import fs from "fs";
+import os from "os";
+
+const persistentToolCache = !!process.env["GHA_PERSISTENT_TOOL_CACHE"];
+const installDir = path.join(os.homedir(), "flutter");
 
 interface Manifest {
   base_url: string;
@@ -21,7 +28,7 @@ function manifestURL(os: string): string {
   return `https://storage.googleapis.com/flutter_infra_release/releases/releases_${os.toLowerCase()}.json`;
 }
 
-export async function setupFlutter(version: string) {
+export async function setupFlutter(version: string, cacheKey: string) {
   const os = process.env["RUNNER_OS"] ?? "";
   const arch = process.env["RUNNER_ARCH"] ?? "";
   core.info(`OS: ${os}`);
@@ -32,7 +39,7 @@ export async function setupFlutter(version: string) {
     const client = new HttpClient();
     const manifest = await fetchManifest(client, os);
     const release = resolveRelease(manifest, arch, version);
-    const flutterDir = await fetchRelease(manifest, release);
+    const flutterDir = await fetchRelease(manifest, release, cacheKey);
     setupEnv(flutterDir);
   });
 
@@ -82,11 +89,30 @@ function resolveRelease(
   return archReleases.find((r) => r.version === matchedVersion)!;
 }
 
-async function fetchRelease({ base_url }: Manifest, release: Release) {
-  const toolPath = tc.find("flutter", release.version, release.dart_sdk_arch);
-  if (toolPath) {
-    core.info(`Found in cache @ ${toolPath}`);
-    return toolPath;
+async function fetchRelease(
+  { base_url }: Manifest,
+  release: Release,
+  cacheKey: string
+) {
+  io.mkdirP(installDir);
+
+  if (persistentToolCache) {
+    const toolPath = tc.find("flutter", release.version, release.dart_sdk_arch);
+    if (toolPath) {
+      core.info(`Found in cache @ ${toolPath}`);
+      return toolPath;
+    }
+  } else if (cache.isFeatureAvailable()) {
+    const key = [
+      cacheKey || "flutter",
+      release.version,
+      release.dart_sdk_arch,
+    ].join(";");
+
+    if (await cache.restoreCache([installDir], key)) {
+      core.info(`Found in cache`);
+      return installDir;
+    }
   }
 
   const url = [base_url, release.archive].join("/");
@@ -106,14 +132,30 @@ async function fetchRelease({ base_url }: Manifest, release: Release) {
   core.info("Precaching...");
   await exec.exec(path.join(extPath, "bin", "flutter"), ["precache"]);
 
-  core.info("Adding to the cache...");
-  const cachedDir = await tc.cacheDir(
-    extPath,
-    "flutter",
-    release.version,
-    release.dart_sdk_arch
-  );
-  core.info(`Successfully cached Flutter to ${cachedDir}`);
+  if (persistentToolCache) {
+    core.info("Adding to the cache...");
+    const cachedDir = await tc.cacheDir(
+      extPath,
+      "flutter",
+      release.version,
+      release.dart_sdk_arch
+    );
+    core.info(`Successfully cached Flutter to ${cachedDir}`);
+  } else if (cache.isFeatureAvailable()) {
+    await io.cp(extPath, installDir, {
+      recursive: true,
+      copySourceDirectory: false,
+    });
+    const key = [
+      cacheKey || "flutter",
+      release.version,
+      release.dart_sdk_arch,
+    ].join(";");
+
+    core.info("Adding to the cache...");
+    await cache.saveCache([installDir], key);
+    core.info("Successfully cached Flutter");
+  }
 
   return extPath;
 }

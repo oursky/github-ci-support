@@ -6536,6 +6536,7 @@ var io = __toESM(require_io());
 var glob = __toESM(require_glob());
 var import_path = __toESM(require("path"));
 var import_fs = __toESM(require("fs"));
+var persistentToolCache = !!process.env["GHA_PERSISTENT_TOOL_CACHE"];
 var dummyVersion = "1.0.0";
 function packageCacheKey(pkg) {
   return `android-sdk-${pkg.replaceAll(";", "-")}`;
@@ -6551,9 +6552,13 @@ async function setupAndroid(accept, packages) {
   core.info(`SDK Manager: ${sdkManager}`);
   await acceptLicenses(sdkManager, accept);
   const packageList = packages.split(" ").filter((x) => x.length > 0);
-  await restorePackages(androidHome, packageList);
+  if (persistentToolCache) {
+    await restorePackages(androidHome, packageList);
+  }
   await installPackages(sdkManager, packageList);
-  await cachePackages(androidHome, packageList);
+  if (persistentToolCache) {
+    await cachePackages(androidHome, packageList);
+  }
 }
 async function locateSDKManager(androidHome) {
   const globber = await glob.create(`${androidHome}/cmdline-tools/*/bin/sdkmanager`);
