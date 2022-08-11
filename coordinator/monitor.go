@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	transitionTimeoutEpochs int64 = 3
+	transitionTimeoutEpochs int64 = 10
 )
 
 type RunnerState string
