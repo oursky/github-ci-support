@@ -6551,7 +6551,7 @@ async function setupAndroid(accept, packages) {
   const sdkManager = await locateSDKManager(androidHome);
   core.info(`SDK Manager: ${sdkManager}`);
   await acceptLicenses(sdkManager, accept);
-  const packageList = packages.split(" ").filter((x) => x.length > 0);
+  const packageList = packages.split(" ").filter((x) => x.length > 0).filter((x) => x.includes(";"));
   if (persistentToolCache) {
     await restorePackages(androidHome, packageList);
   }

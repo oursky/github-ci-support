@@ -25,7 +25,10 @@ export async function setupAndroid(accept: string, packages: string) {
 
   await acceptLicenses(sdkManager, accept);
 
-  const packageList = packages.split(" ").filter((x) => x.length > 0);
+  const packageList = packages
+    .split(" ")
+    .filter((x) => x.length > 0)
+    .filter((x) => x.includes(";")); // Ignore unversioned packages.
   if (persistentToolCache) {
     await restorePackages(androidHome, packageList);
   }
