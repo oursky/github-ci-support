@@ -6971,13 +6971,13 @@ var import_promises = require("fs/promises");
 async function setupAppCenter(versionSpec) {
   const version = await resolveVersion(versionSpec);
   const toolDir = await installCLI(version);
-  const { exitCode, stdout } = await exec.getExecOutput("npm bin", [], {
+  const { exitCode, stdout } = await exec.getExecOutput("npm root", [], {
     cwd: toolDir
   });
   if (exitCode !== 0) {
     throw new Error("Failed to get bin directory");
   }
-  const binPath = stdout.trim();
+  const binPath = import_path.default.join(stdout.trim(), ".bin");
   core.addPath(binPath);
   await exec.exec("appcenter --version");
   await exec.exec("appcenter telemetry off");
