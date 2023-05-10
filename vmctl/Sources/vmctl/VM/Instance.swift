@@ -31,15 +31,21 @@ class Instance: NSObject, VZVirtualMachineDelegate {
 
   @MainActor
   func start(recovery: Bool = false) async throws {
-    // https://github.com/saagarjha/VirtualApple/blob/8231082e026211d992568fdececc6f47609669ac/VirtualApple/VirtualMachine.swift#L135
     Task.detached { @MainActor in
-      let vm = unsafeBitCast(self.vm, to: _VZVirtualMachine.self)
-      let options = unsafeBitCast(
-        NSClassFromString("_VZVirtualMachineStartOptions")!,
-        to: _VZVirtualMachineStartOptions.Type.self
-      ).init()
-      options.bootMacOSRecovery = recovery
-      try await vm._start(with: options)
+      if #available(macOS 13.0, *) {
+        let options: VZMacOSVirtualMachineStartOptions = VZMacOSVirtualMachineStartOptions()
+        options.startUpFromMacOSRecovery = recovery
+        try await self.vm.start(options: options)
+      } else {
+        // https://github.com/saagarjha/VirtualApple/blob/8231082e026211d992568fdececc6f47609669ac/VirtualApple/VirtualMachine.swift#L135
+        let vm = unsafeBitCast(self.vm, to: _VZVirtualMachine.self)
+        let options = unsafeBitCast(
+          NSClassFromString("_VZVirtualMachineStartOptions")!,
+          to: _VZVirtualMachineStartOptions.Type.self
+        ).init()
+        options.bootMacOSRecovery = recovery
+        try await vm._start(with: options)
+      }
     }
   }
 
