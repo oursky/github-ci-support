@@ -4545,7 +4545,7 @@ async function setupAndroid(accept, packages) {
   const sdkManager = await locateSDKManager(androidHome);
   core.info(`SDK Manager: ${sdkManager}`);
   await acceptLicenses(sdkManager, accept);
-  const packageList = packages.split(" ").filter((x) => x.length > 0).filter((x) => x.includes(";"));
+  const packageList = packages.split(" ").filter((x) => x.length > 0);
   await installPackages(sdkManager, packageList);
 }
 async function locateSDKManager(androidHome) {

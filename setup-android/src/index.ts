@@ -14,10 +14,7 @@ export async function setupAndroid(accept: string, packages: string) {
 
   await acceptLicenses(sdkManager, accept);
 
-  const packageList = packages
-    .split(" ")
-    .filter((x) => x.length > 0)
-    .filter((x) => x.includes(";")); // Ignore unversioned packages.
+  const packageList = packages.split(" ").filter((x) => x.length > 0);
   await installPackages(sdkManager, packageList);
 }
 
