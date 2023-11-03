@@ -4572,7 +4572,12 @@ async function acceptLicenses(sdkManager, accept) {
 }
 async function installPackages(sdkManager, packages) {
   await core.group("Installing packages...", async () => {
-    await exec.exec(sdkManager, packages);
+    for (const pkg of packages) {
+      try {
+        await exec.exec(sdkManager, [pkg]);
+      } catch {
+      }
+    }
   });
 }
 

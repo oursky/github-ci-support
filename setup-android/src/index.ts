@@ -47,8 +47,12 @@ async function acceptLicenses(sdkManager: string, accept: string) {
 
 async function installPackages(sdkManager: string, packages: string[]) {
   await core.group("Installing packages...", async () => {
-    // Installing packages with same dependency would double-install the dependency.
-    // Ignore that since it's mostly one-off extra downloads.
-    await exec.exec(sdkManager, packages);
+    // Install packages one-by-one,
+    // ignore any errors, since it would retry when gradle builds.
+    for (const pkg of packages) {
+      try {
+        await exec.exec(sdkManager, [pkg]);
+      } catch {}
+    }
   });
 }
