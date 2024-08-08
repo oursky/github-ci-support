@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { inspect } from "util";
 import { setupAppCenter } from "./index";
 
 async function run() {
@@ -9,6 +10,7 @@ async function run() {
 
     await setupAppCenter(versionSpec);
   } catch (error) {
+    core.info(inspect(error));
     core.setFailed(`Action failed: ${error}`);
   }
 }

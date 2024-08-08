@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { inspect } from "util";
 import { setupAndroid } from "./index";
 
 async function run() {
@@ -8,6 +9,7 @@ async function run() {
 
     await setupAndroid(acceptLicenses, packages);
   } catch (error) {
+    core.info(inspect(error));
     core.setFailed(`Action failed: ${error}`);
   }
 }
